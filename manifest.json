@@ -1,8 +1,20 @@
 {
-  "name": "HTML Exporter",
-  "mod": 56,
-  "conflicts": [],
-  "min_point_version": 40,
-  "max_point_version": 99,
-  "homepage": ""
+  "name": "html-exporter",
+  "version": "0.1.0",
+  "description": "This add-on lets you export the back side of selected cards from Anki’s Browser and save them as a readable HTML document. The exported HTML looks almost exactly like what you see inside Anki because it uses the card’s actual template and CSS.",
+  "auther": "Yuwa Yanagitani",
+  "homepage": "https://github.com/yuwayanagitani/html-exporter",
+  "license": "MIT",
+  "min_anki_version": "23.10.0",
+  "max_anki_version": null,
+  "requirements": [],
+  "entry_point": "__init__.py",
+  "config_file": null,
+  "tags": [
+    "anki",
+    "addon",
+    "export",
+    "html"
+  ],
+  "notes": ""
 }
