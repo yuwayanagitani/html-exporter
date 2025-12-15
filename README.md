@@ -1,42 +1,34 @@
 # Anki HTML Exporter
 
-This add-on lets you export the back side of selected cards from Anki’s Browser and save them as a readable HTML document. The exported HTML looks almost exactly like what you see inside Anki because it uses the card’s actual template and CSS.
+AnkiWeb: https://ankiweb.net/shared/by-author/2117859718
+
+Export the back side of selected cards from Anki’s Browser into a readable HTML document. The exported HTML uses the card's actual template and CSS so it looks like what you see in Anki.
 
 ## Features
-- Export the back side of selected cards to a single HTML file.
-- Uses each card’s template and CSS so the exported page matches Anki rendering.
-- Works from Anki Browser selection.
-
-## Requirements
-- Anki 2.1+ (tested on stable releases)
-- Add-on compatible with Anki’s bundled Python runtime (no external installation required)
+- Export backs of selected cards to a single HTML file
+- Preserves card template HTML and CSS
+- Option to include front side or notes metadata
 
 ## Installation
-1. Download the add-on as a zip or clone this repository.
-2. In Anki: Tools → Add-ons → Open Add-ons Folder.
-3. Place the add-on folder (or extract the zip) into the add-ons folder.
-4. Restart Anki.
-
-Alternatively, install via Anki's Add-ons → Install from file if you have a packaged zip.
+1. Tools → Add-ons → Open Add-ons Folder.
+2. Place the add-on folder in `addons21/`.
+3. Restart Anki.
 
 ## Usage
-1. Open Anki Browser and select the notes/cards you want to export.
-2. From the add-ons menu or context menu, choose “Export Back Sides as HTML” (or similar).
-3. Choose an output file location and name.
-4. Open the resulting HTML file in a browser — it will show card backs rendered with the card templates and CSS.
+- Select cards in the Browser → Tools → Export to HTML.
+- Choose output path and options (include front, include CSS).
 
-## Configuration
-- No complex configuration is required. If you want to tweak the output styling, edit the exported HTML file or modify templates in Anki.
-
-## Troubleshooting
-- If styling looks wrong, verify the card template and CSS in the note type.
-- If images do not appear, ensure the collection.media files are available in Anki’s media folder and relative paths are preserved.
+## Options
+- Include front side
+- Include inline CSS
+- Output filename and preview in browser
 
 ## Development
-- Contributions and bug reports are welcome. Please open an issue on GitHub describing the problem and include Anki version and steps to reproduce.
+- Python for Anki.
+- CSS and templates are included so output matches the card render.
+
+## Issues & Support
+Report exporting problems (e.g., missing CSS or assets) with a reproducible example.
 
 ## License
-MIT License — see LICENSE file.
-
-## Contact
-Author: yuwayanagitani
+See LICENSE.
