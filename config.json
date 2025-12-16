@@ -1,0 +1,16 @@
+{
+  "01_general": {
+    "enabled": true
+  },
+  "02_export": {
+    "export_mode": "both",
+    "output_format": "html",
+    "pdf_layout": "single",
+    "default_filename": "anki-exporter",
+    "copy_media_files": true
+  },
+  "04_images": {
+    "img_max_width_px": 800,
+    "img_max_height_px": 400
+  }
+}

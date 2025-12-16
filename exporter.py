@@ -1,18 +1,79 @@
+from __future__ import annotations
+
 import re
 import shutil
 from pathlib import Path
+from typing import Any, Dict, Optional, Tuple
 
 from anki.collection import Collection  # type: ignore
 
 
-# ページ全体の最低限の枠組み（ここではグローバルCSSは付けない）
-DOC_HEAD = """<!DOCTYPE html>
+def _cfg_get(cfg: Optional[Dict[str, Any]], path: list[str], default: Any) -> Any:
+    cur: Any = cfg or {}
+    for p in path:
+        if not isinstance(cur, dict):
+            return default
+        if p not in cur:
+            return default
+        cur = cur[p]
+    return cur
+
+
+_RE_ANSWER_HR = re.compile(r'<hr[^>]*id=["\']answer["\'][^>]*>', re.I)
+
+
+def _split_by_answer_hr(full_answer_html: str) -> Tuple[str, str, bool]:
+    m = _RE_ANSWER_HR.search(full_answer_html or "")
+    if not m:
+        return full_answer_html, full_answer_html, False
+    front = full_answer_html[: m.start()]
+    back = full_answer_html[m.end() :]
+    return front, back, True
+
+
+def _strip_first_style_block(html: str) -> str:
+    return re.sub(r"<style.*?</style>", "", html or "", count=1, flags=re.S | re.I)
+
+
+def _doc_head(cfg: Optional[Dict[str, Any]] = None) -> str:
+    img_w = int(_cfg_get(cfg, ["04_images", "img_max_width_px"], 800) or 800)
+    img_h = int(_cfg_get(cfg, ["04_images", "img_max_height_px"], 400) or 400)
+
+    pdf_layout = str(_cfg_get(cfg, ["02_export", "pdf_layout"], "single") or "single").lower().strip()
+    if pdf_layout not in {"single", "two_column"}:
+        pdf_layout = "single"
+
+    # PDF向け：print時だけ二段組などを適用（QWebEnginePage.printToPdf は print CSS が効く）
+    if pdf_layout == "two_column":
+        print_css = """
+@media print {
+  .cards {
+    column-count: 2;
+    column-gap: 16px;
+  }
+  .card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+"""
+    else:
+        print_css = """
+@media print {
+  .card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+"""
+
+    return f"""<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>Anki Back Export</title>
+  <title>Anki Export</title>
   <style>
-.card {
+.card {{
     color: #222222;
     background-color: #ffffff;
     line-height: 2;
@@ -22,110 +83,108 @@ DOC_HEAD = """<!DOCTYPE html>
     text-align: left;
     padding: 20px;
     border-radius: 14px;
-    margin-bottom: 40px;
+    margin-bottom: 18px;
     box-shadow: 0 0 10px rgba(0,0,0,0.08);
-}
-.back {
+}}
+.content {{
     width: 95%;
     margin: auto;
-}
-img {
-    max-width: 800px;
-    max-height: 400px;
-}
+}}
+img {{
+    max-width: {img_w}px;
+    max-height: {img_h}px;
+}}
+{print_css}
   </style>
 </head>
 <body>
+<div class="cards">
 """
 
+
 DOC_FOOT = """
+</div>
 </body>
 </html>
 """
 
 
-def export_cards_back(col: Collection, card_ids, output_file: Path) -> None:
-    """
-    ブラウザで選択されたカードIDの一覧から、
-    ・card.answer() を使って裏面HTMLをレンダリング
-    ・noteのノートタイプCSSを埋め込み
-    ・1つのHTMLにまとめて出力
-    ・画像は collection.media からコピー
-    を行うメイン関数
-    """
-    media_dir = Path(col.media.dir())
-    cards_html = []
+def build_export_html(col: Collection, card_ids, cfg: Optional[Dict[str, Any]] = None) -> str:
+    mode = str(_cfg_get(cfg, ["02_export", "export_mode"], "back") or "back").lower().strip()
+    if mode not in {"front", "back", "both"}:
+        mode = "back"
+
+    cards_html: list[str] = []
 
     for cid in card_ids:
         card = col.get_card(cid)
         note = card.note()
 
-        # ノートタイプ（モデル）と CSS
-        if hasattr(note, "note_type"):
-            model = note.note_type()
-        else:
-            model = note.model()
+        model = note.note_type() if hasattr(note, "note_type") else note.model()
         css = model.get("css", "")
 
-        # Anki 内部でレンダリングした Answer HTML
-        # 通常は front + <hr id="answer"> + back という構造になっている
         full_answer_html = card.answer()
+        front_html, back_html, _found = _split_by_answer_hr(full_answer_html)
 
-        # 「表面は不要」なので、<hr id="answer"> 以降だけを抜き出す
-        back_html = full_answer_html
-        m = re.search(r'<hr[^>]*id=["\']answer["\'][^>]*>', full_answer_html)
-        if m:
-            back_html = full_answer_html[m.end():]
-            # 最初の <style>...</style> を削除（外側で model['css'] を入れているので重複するため）
-            back_html = re.sub(r"<style.*?</style>", "", back_html, count=1, flags=re.S)
+        if mode == "front":
+            body_html = front_html
+        elif mode == "back":
+            body_html = back_html
+        else:
+            body_html = full_answer_html
 
-        # デッキ名（おまけ情報。いらなければ空文字でもOK）
-        deck_name = ""
-        deck = col.decks.get(card.did)
-        if deck:
-            deck_name = deck.get("name", "")
+        body_html = _strip_first_style_block(body_html)
 
-        # 1カード分のHTMLブロック
-        card_block = f"""
+        cards_html.append(
+            f"""
 <div class="card">
   <style>
 {css}
   </style>
-  <div class="back">
-{back_html}
+  <div class="content">
+{body_html}
   </div>
 </div>
-<br>
 """
-        cards_html.append(card_block)
+        )
 
-    # すべて結合して1つのHTMLに
-    full_html = DOC_HEAD + "\n".join(cards_html) + DOC_FOOT
+    return _doc_head(cfg) + "\n".join(cards_html) + DOC_FOOT
 
-    # HTMLファイルを書き出し
+
+def export_cards_html(col: Collection, card_ids, output_file: Path, cfg: Optional[Dict[str, Any]] = None) -> str:
+    html = build_export_html(col, card_ids, cfg)
+
     output_file.parent.mkdir(parents=True, exist_ok=True)
-    with output_file.open("w", encoding="utf-8") as f:
-        f.write(full_html)
+    output_file.write_text(html, encoding="utf-8")
 
-    # ==== 画像コピー ====
-    _copy_images_from_html(full_html, media_dir, output_file.parent)
+    if bool(_cfg_get(cfg, ["02_export", "copy_media_files"], True)):
+        media_dir = Path(col.media.dir())
+        _copy_images_from_html(html, media_dir, output_file.parent)
+
+    return html
 
 
 def _copy_images_from_html(html: str, media_dir: Path, out_dir: Path) -> None:
-    """
-    HTML 内の src="..." を全て拾って、
-    Anki の media フォルダから同じフォルダへコピーする
-    """
-    # src="〜" にマッチ
-    image_names = set(re.findall(r'src="([^"]+)"', html))
-    if not image_names:
+    image_srcs = set(re.findall(r'src="([^"]+)"', html or ""))
+    if not image_srcs or not media_dir.exists():
         return
 
-    if not media_dir.exists():
-        return
+    for src_val in image_srcs:
+        if not src_val:
+            continue
+        if src_val.startswith("data:"):
+            continue
+        if "://" in src_val or src_val.startswith("file:"):
+            continue
 
-    for name in image_names:
+        name = src_val.split("?", 1)[0].split("#", 1)[0].strip()
+        if not name:
+            continue
+
         src = media_dir / name
         dst = out_dir / name
         if src.exists():
-            shutil.copy2(src, dst)
+            try:
+                shutil.copy2(src, dst)
+            except Exception:
+                pass
