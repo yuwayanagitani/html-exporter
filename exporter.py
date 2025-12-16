@@ -38,6 +38,7 @@ def _strip_first_style_block(html: str) -> str:
 def _doc_head(cfg: Optional[Dict[str, Any]] = None) -> str:
     img_w = int(_cfg_get(cfg, ["04_images", "img_max_width_px"], 800) or 800)
     img_h = int(_cfg_get(cfg, ["04_images", "img_max_height_px"], 400) or 400)
+    pdf_font = int(_cfg_get(cfg, ["02_export", "pdf_font_size_px"], 16) or 16)
 
     pdf_layout = str(_cfg_get(cfg, ["02_export", "pdf_layout"], "single") or "single").lower().strip()
     if pdf_layout not in {"single", "two_column"}:
@@ -45,26 +46,32 @@ def _doc_head(cfg: Optional[Dict[str, Any]] = None) -> str:
 
     # PDF向け：print時だけ二段組などを適用（QWebEnginePage.printToPdf は print CSS が効く）
     if pdf_layout == "two_column":
-        print_css = """
-@media print {
-  .cards {
+        print_css = f"""
+@media print {{
+  body {{
+    font-size: {pdf_font}px;
+  }}
+  .cards {{
     column-count: 2;
     column-gap: 16px;
-  }
-  .card {
+  }}
+  .card {{
     break-inside: avoid;
     page-break-inside: avoid;
-  }
-}
+  }}
+}}
 """
     else:
-        print_css = """
-@media print {
-  .card {
+        print_css = f"""
+@media print {{
+  body {{
+    font-size: {pdf_font}px;
+  }}
+  .card {{
     break-inside: avoid;
     page-break-inside: avoid;
-  }
-}
+  }}
+}}
 """
 
     return f"""<!DOCTYPE html>

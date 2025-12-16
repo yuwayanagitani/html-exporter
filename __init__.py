@@ -38,7 +38,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "02_export": {
         "export_mode": "both",            # front / back / both
         "output_format": "html",          # html / pdf
-        "pdf_layout": "single",           # single / two_column
+        "pdf_layout": "single",
+        "pdf_font_size_px": 16, 
         "default_filename": "anki_exporter",
         "copy_media_files": True,
     },
@@ -142,6 +143,11 @@ class ConfigDialog(QDialog):
         self.pdf_layout_combo.setCurrentIndex(i if i >= 0 else 0)
         form_e.addRow("PDF layout", self.pdf_layout_combo)
 
+        self.pdf_font_size = QSpinBox()
+        self.pdf_font_size.setRange(8, 40)
+        self.pdf_font_size.setValue(int(cfg.get("02_export", {}).get("pdf_font_size_px", 16)))
+        form_e.addRow("PDF font size (px)", self.pdf_font_size)
+
         self.default_filename = QLineEdit()
         self.default_filename.setText(str(cfg.get("02_export", {}).get("default_filename", "selected_export.html")))
         form_e.addRow("Default output filename", self.default_filename)
@@ -190,14 +196,23 @@ class ConfigDialog(QDialog):
 
         root.addWidget(btns)
 
+        self.format_combo.currentIndexChanged.connect(self._update_pdf_controls)
+        self._update_pdf_controls()
+
+    def _update_pdf_controls(self) -> None:
+        is_pdf = (self.format_combo.currentData() == "pdf")
+        self.pdf_layout_combo.setEnabled(is_pdf)
+        self.pdf_font_size.setEnabled(is_pdf)
+
     def _gather_conf(self) -> Dict[str, Any]:
         return {
             "01_general": {"enabled": bool(self.enabled_cb.isChecked())},
             "02_export": {
-                "export_mode": str(self.mode_combo.currentData() or "back"),
+                "export_mode": str(self.mode_combo.currentData() or "both"),
                 "output_format": str(self.format_combo.currentData() or "html"),
                 "pdf_layout": str(self.pdf_layout_combo.currentData() or "single"),
-                "default_filename": (self.default_filename.text() or "selected_export.html").strip(),
+                "pdf_font_size_px": int(self.pdf_font_size.value()),
+                "default_filename": (self.default_filename.text() or "anki-exporter").strip(),
                 "copy_media_files": bool(self.copy_media_cb.isChecked()),
             },
             "04_images": {
@@ -218,11 +233,15 @@ class ConfigDialog(QDialog):
         i = self.pdf_layout_combo.findData(DEFAULT_CONFIG["02_export"]["pdf_layout"])
         self.pdf_layout_combo.setCurrentIndex(i if i >= 0 else 0)
 
+        self.pdf_font_size.setValue(int(DEFAULT_CONFIG["02_export"]["pdf_font_size_px"]))
+
         self.default_filename.setText(str(DEFAULT_CONFIG["02_export"]["default_filename"]))
         self.copy_media_cb.setChecked(bool(DEFAULT_CONFIG["02_export"]["copy_media_files"]))
 
         self.max_w.setValue(int(DEFAULT_CONFIG["04_images"]["img_max_width_px"]))
         self.max_h.setValue(int(DEFAULT_CONFIG["04_images"]["img_max_height_px"]))
+
+        self._update_pdf_controls()
 
     def _on_save(self) -> None:
         _write_config(self._gather_conf())

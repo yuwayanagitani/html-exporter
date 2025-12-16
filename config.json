@@ -6,6 +6,7 @@
     "export_mode": "both",
     "output_format": "html",
     "pdf_layout": "single",
+    "pdf_font_size_px": 16,
     "default_filename": "anki-exporter",
     "copy_media_files": true
   },
